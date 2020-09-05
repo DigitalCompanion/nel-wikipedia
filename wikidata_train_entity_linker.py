@@ -14,7 +14,7 @@ import logging
 import spacy
 from pathlib import Path
 import plac
-from numba import njit, prange
+from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from wiki_io import TRAINING_DATA_FILE, KB_MODEL_DIR, KB_FILE, LOG_FORMAT, OUTPUT_MODEL_DIR
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
     train_articles=("# training articles (default 90% of all)", "option", "t", int),
     dev_articles=("# dev test articles (default 10% of all)", "option", "d", int),
     labels_discard=("NER labels to discard (default None)", "option", "l", str),
+    n_jobs=("Number of workers", "option", "n", int),
 )
 def main(
     dir_kb,
@@ -50,6 +51,7 @@ def main(
     train_articles=None,
     dev_articles=None,
     labels_discard=None,
+    n_jobs=4,
 ):
     if not output_dir:
         logger.warning(
