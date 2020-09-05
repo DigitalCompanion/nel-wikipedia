@@ -1,5 +1,7 @@
 ## Entity Linking with Wikipedia and Wikidata
 
+Original at https://github.com/explosion/projects, this is a rewrite for multiprocessing of nel-wikipedia.
+
 These scripts are provided on an as-is basis. Questions around usage of these scripts are best asked at StackOverflow.
 Note that processing the whole of Wikipedia will require a lot of resources and can be overkill for your specific use-case.
 
