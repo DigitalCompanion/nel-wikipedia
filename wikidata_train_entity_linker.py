@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 
 import random
 import logging
-import spacy
+import spacy 
 from pathlib import Path
 import plac
 from joblib import Parallel, delayed
@@ -105,9 +105,6 @@ def disableotherpipelines(nlp,lr,l2):
     return nlp,other_pipes,optimizer
 
 
-
-
-
 @plac.annotations(
     dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
     output_dir=("Output directory", "option", "o", Path),
@@ -195,8 +192,9 @@ def main(
         bar_total = len(train_indices)
         if train_articles:
             bar_total = train_articles
-
+#####################################################################
         with tqdm(total=bar_total, leave=False, desc="Epoch " + str(itn)) as pbar:
+            result = Parallel(n_jobs=8, prefer="threads")
             for batch in batches:
                 if not train_articles or articles_processed < train_articles:
                     with nlp.disable_pipes("entity_linker"):
@@ -223,6 +221,7 @@ def main(
                             pbar.update(len(docs))
                     except Exception as e:
                         logger.error("Error updating batch:" + str(e))
+#####################################################################
         if batchnr > 0:
             logging.info(
                 "Epoch {} trained on {} articles, train loss {}".format(
@@ -246,6 +245,7 @@ def main(
                 context=True,
                 dev_limit=len(dev_indices),
             )
+#####################################################################
 
     if output_dir:
         # STEP 4: write the NLP pipeline (now including an EL model) to file
