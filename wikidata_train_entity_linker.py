@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def setupIO(output_dir):
     if not output_dir.exists():
         output_dir.mkdir()
-
+    return output_dir
 
 def loadmodelfromdir(nlp_dir):
     logger.info("STEP 1a: Loading model from {}".format(nlp_dir))
@@ -50,7 +50,7 @@ def checknercomponentinpipeline(nlp, kb_path):
     return kb
 
 
-def readtrainingdataset(training_path):
+def readtrainingdataset(training_path,train_articles, dev_articles):
 
     logger.info("STEP 2: Reading training & dev dataset from {}".format(training_path))
     train_indices, dev_indices = wikipedia_processor.read_training_indices(
@@ -114,7 +114,7 @@ def main(
     nlp_output_dir = output_dir / OUTPUT_MODEL_DIR
 
     # STEP 0: set up IO
-    setupIO(output_dir)
+    output_dir = setupIO(output_dir)
 
     # STEP 1 : load the NLP object
     nlp = loadmodelfromdir(nlp_dir)
@@ -123,7 +123,7 @@ def main(
     kb = checknercomponentinpipeline(nlp, kb_path)
 
     # STEP 2: read the training dataset previously created from WP
-    train_indices, dev_indices = readtrainingdataset(training_path)
+    train_indices, dev_indices = readtrainingdataset(training_path, train_articles, dev_articles)
 
 #####################################################################
 
