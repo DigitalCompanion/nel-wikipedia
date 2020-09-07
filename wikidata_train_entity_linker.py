@@ -26,20 +26,6 @@ from spacy.util import minibatch, compounding
 
 logger = logging.getLogger(__name__)
 
-
-@plac.annotations(
-    dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
-    output_dir=("Output directory", "option", "o", Path),
-    loc_training=("Location to training data", "option", "k", Path),
-    epochs=("Number of training iterations (default 10)", "option", "e", int),
-    dropout=("Dropout to prevent overfitting (default 0.5)", "option", "p", float),
-    lr=("Learning rate (default 0.005)", "option", "n", float),
-    l2=("L2 regularization", "option", "r", float),
-    train_articles=("# training articles (default 90% of all)", "option", "t", int),
-    dev_articles=("# dev test articles (default 10% of all)", "option", "d", int),
-    labels_discard=("NER labels to discard (default None)", "option", "l", str),
-    # n_jobs=("Number of workers", "option", "n", int),
-)
 def setupIO(output_dir):
     if not output_dir.exists():
         output_dir.mkdir()
@@ -54,6 +40,51 @@ def loadmodelfromdir(nlp_dir):
         )
     )
     return nlp
+
+def checknercomponentinpipeline(nlp, kb_path):
+    if "ner" not in nlp.pipe_names:
+        raise ValueError("The `nlp` object should have a pretrained `ner` component.")
+
+    logger.info("STEP 1b: Loading KB from {}".format(kb_path))
+    kb = read_kb(nlp, kb_path)
+    return kb
+
+
+def readtrainingdataset(training_path):
+
+    logger.info("STEP 2: Reading training & dev dataset from {}".format(training_path))
+    train_indices, dev_indices = wikipedia_processor.read_training_indices(
+        training_path
+    )
+    logger.info(
+        "Training set has {} articles, limit set to roughly {} articles per epoch".format(
+            len(train_indices), train_articles if train_articles else "all"
+        )
+    )
+    logger.info(
+        "Dev set has {} articles, limit set to roughly {} articles for evaluation".format(
+            len(dev_indices), dev_articles if dev_articles else "all"
+        )
+    )
+    if dev_articles:
+        dev_indices = dev_indices[0:dev_articles]
+
+    return train_indices, dev_indices
+
+@plac.annotations(
+    dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
+    output_dir=("Output directory", "option", "o", Path),
+    loc_training=("Location to training data", "option", "k", Path),
+    epochs=("Number of training iterations (default 10)", "option", "e", int),
+    dropout=("Dropout to prevent overfitting (default 0.5)", "option", "p", float),
+    lr=("Learning rate (default 0.005)", "option", "n", float),
+    l2=("L2 regularization", "option", "r", float),
+    train_articles=("# training articles (default 90% of all)", "option", "t", int),
+    dev_articles=("# dev test articles (default 10% of all)", "option", "d", int),
+    labels_discard=("NER labels to discard (default None)", "option", "l", str),
+
+)
+
 
 
 def main(
@@ -89,29 +120,12 @@ def main(
     nlp = loadmodelfromdir(nlp_dir)
 
     # check that there is a NER component in the pipeline
-    if "ner" not in nlp.pipe_names:
-        raise ValueError("The `nlp` object should have a pretrained `ner` component.")
-
-    logger.info("STEP 1b: Loading KB from {}".format(kb_path))
-    kb = read_kb(nlp, kb_path)
+    kb = checknercomponentinpipeline(nlp, kb_path)
 
     # STEP 2: read the training dataset previously created from WP
-    logger.info("STEP 2: Reading training & dev dataset from {}".format(training_path))
-    train_indices, dev_indices = wikipedia_processor.read_training_indices(
-        training_path
-    )
-    logger.info(
-        "Training set has {} articles, limit set to roughly {} articles per epoch".format(
-            len(train_indices), train_articles if train_articles else "all"
-        )
-    )
-    logger.info(
-        "Dev set has {} articles, limit set to roughly {} articles for evaluation".format(
-            len(dev_indices), dev_articles if dev_articles else "all"
-        )
-    )
-    if dev_articles:
-        dev_indices = dev_indices[0:dev_articles]
+    train_indices, dev_indices = readtrainingdataset(training_path)
+
+#####################################################################
 
     # STEP 3: create and train an entity linking pipe
     logger.info(
