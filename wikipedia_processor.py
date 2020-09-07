@@ -46,8 +46,6 @@ ns_regex = re.compile(ns_regex, re.IGNORECASE)
 files = r""
 for f in WP_FILE_NAMESPACE:
     files += "\[\[" + f + ":[^[\]]+]]" + "|"
-    print("debug: # of files "+ str(len(files)) )
-    print("debug: " + files)
 files = files[0 : len(files) - 1]
 file_regex = re.compile(files)
 

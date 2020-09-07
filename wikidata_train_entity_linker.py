@@ -38,10 +38,11 @@ logger = logging.getLogger(__name__)
     train_articles=("# training articles (default 90% of all)", "option", "t", int),
     dev_articles=("# dev test articles (default 10% of all)", "option", "d", int),
     labels_discard=("NER labels to discard (default None)", "option", "l", str),
-    n_jobs=("Number of workers", "option", "n", int),
+    #n_jobs=("Number of workers", "option", "n", int),
 )
+
 def main(
-    dir_kb,
+    dir_kb="kb/en",
     output_dir=None,
     loc_training=None,
     epochs=10,
@@ -51,14 +52,15 @@ def main(
     train_articles=None,
     dev_articles=None,
     labels_discard=None,
-    n_jobs=4,
+    #n_jobs =  4,
 ):
     if not output_dir:
         logger.warning(
             "No output dir specified so no results will be written, are you sure about this ?"
         )
-
-    logger.info("Creating Entity Linker with Wikipedia and WikiData")
+#    if not n_jobs:
+#       logger.info("n_jobs not set, defaulting to 4.")
+#   logger.info("Creating Entity Linker with Wikipedia and WikiData")
 
     output_dir = Path(output_dir) if output_dir else dir_kb
     training_path = loc_training if loc_training else dir_kb / TRAINING_DATA_FILE
@@ -147,6 +149,7 @@ def main(
     measure_performance(
         dev_data, kb, el_pipe, baseline=True, context=False, dev_limit=len(dev_indices)
     )
+    
     for itn in range(epochs):
         random.shuffle(train_indices)
         losses = {}
