@@ -71,6 +71,31 @@ def readtrainingdataset(training_path,train_articles, dev_articles):
 
     return train_indices, dev_indices
 
+def createpipeline(labels_discard,nlp,kb,epochs):
+    logger.info(
+        "STEP 3: Creating and training an Entity Linking pipe for {} epochs".format(
+            epochs
+        )
+    )
+    if labels_discard:
+        labels_discard = [x.strip() for x in labels_discard.split(",")]
+        logger.info(
+            "Discarding {} NER types: {}".format(len(labels_discard), labels_discard)
+        )
+    else:
+        labels_discard = []
+
+    el_pipe = nlp.create_pipe(
+        name="entity_linker",
+        config={
+            "pretrained_vectors": nlp.vocab.vectors.name,
+            "labels_discard": labels_discard,
+        },
+    )
+    el_pipe.set_kb(kb)
+    nlp.add_pipe(el_pipe, last=True)
+    return el_pipe, nlp
+
 @plac.annotations(
     dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
     output_dir=("Output directory", "option", "o", Path),
@@ -125,31 +150,10 @@ def main(
     # STEP 2: read the training dataset previously created from WP
     train_indices, dev_indices = readtrainingdataset(training_path, train_articles, dev_articles)
 
-#####################################################################
 
     # STEP 3: create and train an entity linking pipe
-    logger.info(
-        "STEP 3: Creating and training an Entity Linking pipe for {} epochs".format(
-            epochs
-        )
-    )
-    if labels_discard:
-        labels_discard = [x.strip() for x in labels_discard.split(",")]
-        logger.info(
-            "Discarding {} NER types: {}".format(len(labels_discard), labels_discard)
-        )
-    else:
-        labels_discard = []
-
-    el_pipe = nlp.create_pipe(
-        name="entity_linker",
-        config={
-            "pretrained_vectors": nlp.vocab.vectors.name,
-            "labels_discard": labels_discard,
-        },
-    )
-    el_pipe.set_kb(kb)
-    nlp.add_pipe(el_pipe, last=True)
+    el_pipe, nlp = createpipeline(labels_discard,nlp,kb,epochs)
+#####################################################################
 
     other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "entity_linker"]
     with nlp.disable_pipes(*other_pipes):  # only train Entity Linking
