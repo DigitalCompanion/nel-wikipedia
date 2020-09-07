@@ -96,6 +96,18 @@ def createpipeline(labels_discard,nlp,kb,epochs):
     nlp.add_pipe(el_pipe, last=True)
     return el_pipe, nlp
 
+def disableotherpipelines(nlp,lr,l2):
+    other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "entity_linker"]
+    with nlp.disable_pipes(*other_pipes):  # only train Entity Linking
+        optimizer = nlp.begin_training()
+        optimizer.learn_rate = lr
+        optimizer.L2 = l2
+    return nlp,other_pipes,optimizer
+
+
+
+
+
 @plac.annotations(
     dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
     output_dir=("Output directory", "option", "o", Path),
@@ -153,13 +165,11 @@ def main(
 
     # STEP 3: create and train an entity linking pipe
     el_pipe, nlp = createpipeline(labels_discard,nlp,kb,epochs)
-#####################################################################
 
-    other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "entity_linker"]
-    with nlp.disable_pipes(*other_pipes):  # only train Entity Linking
-        optimizer = nlp.begin_training()
-        optimizer.learn_rate = lr
-        optimizer.L2 = l2
+
+    # STEP 4: disable other pipelines since we only will train entity linking
+    nlp, other_pipes, optimizer = disableotherpipelines(nlp,lr,l2)
+#####################################################################
 
     logger.info("Dev Baseline Accuracies:")
     dev_data = wikipedia_processor.read_el_docs_golds(
@@ -216,7 +226,7 @@ def main(
         if batchnr > 0:
             logging.info(
                 "Epoch {} trained on {} articles, train loss {}".format(
-                    itn, articles_processed, round(losses["entity_linker"] / batchnr, 2)
+                                        itn, articles_processed, round(losses["entity_linker"] / batchnr, 2)
                 )
             )
             # re-read the dev_data (data is returned as a generator)
