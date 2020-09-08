@@ -104,6 +104,38 @@ def disableotherpipelines(nlp,lr,l2):
         optimizer.L2 = l2
     return nlp,other_pipes,optimizer
 
+def trainbatch(batchnr, batches,train_articles,articles_processed,nlp,training_path,kb,labels_discard,other_pipes,optimizer,dropout,losses,pbar):
+    for batch in batches:
+                if not train_articles or articles_processed < train_articles:
+                    with nlp.disable_pipes("entity_linker"):
+                        train_batch = wikipedia_processor.read_el_docs_golds(
+                            nlp=nlp,
+                            entity_file_path=training_path,
+                            dev=False,
+                            line_ids=batch,
+                            kb=kb,
+                            labels_discard=labels_discard,
+                        )
+                        docs, golds = zip(*train_batch)
+                    try:
+                        with nlp.disable_pipes(*other_pipes):
+                            nlp.update(
+                                docs=docs,
+                                golds=golds,
+                                sgd=optimizer,
+                                drop=dropout,
+                                losses=losses,
+                            )
+                            batchnr += 1
+                            articles_processed += len(docs)
+                            pbar.update(len(docs))
+                    except Exception as e:
+                        logger.error("Error updating batch:" + str(e))
+    return train_batch,nlp,pbar,batchnr,articles_processed
+
+
+
+
 
 @plac.annotations(
     dir_kb=("Directory with KB, NLP and related files", "positional", None, Path),
@@ -194,33 +226,9 @@ def main(
             bar_total = train_articles
 #####################################################################
         with tqdm(total=bar_total, leave=False, desc="Epoch " + str(itn)) as pbar:
-            result = Parallel(n_jobs=8, prefer="threads")
-            for batch in batches:
-                if not train_articles or articles_processed < train_articles:
-                    with nlp.disable_pipes("entity_linker"):
-                        train_batch = wikipedia_processor.read_el_docs_golds(
-                            nlp=nlp,
-                            entity_file_path=training_path,
-                            dev=False,
-                            line_ids=batch,
-                            kb=kb,
-                            labels_discard=labels_discard,
-                        )
-                        docs, golds = zip(*train_batch)
-                    try:
-                        with nlp.disable_pipes(*other_pipes):
-                            nlp.update(
-                                docs=docs,
-                                golds=golds,
-                                sgd=optimizer,
-                                drop=dropout,
-                                losses=losses,
-                            )
-                            batchnr += 1
-                            articles_processed += len(docs)
-                            pbar.update(len(docs))
-                    except Exception as e:
-                        logger.error("Error updating batch:" + str(e))
+            result = Parallel(n_jobs=8, backend='multiprocessing')(delayed(trainbatch)(batchnr,batches,train_articles,articles_processed,nlp,training_path,kb,labels_discard,other_pipes,optimizer,dropout,losses,pbar) )
+#            train_batch,nlp,pbar,batchnr,articles_processed = trainbatch(batchnr,batches,train_articles,articles_processed,nlp,training_path,kb,labels_discard,other_pipes,optimizer,dropout,losses,pbar) 
+
 #####################################################################
         if batchnr > 0:
             logging.info(
